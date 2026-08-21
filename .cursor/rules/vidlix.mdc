@@ -1,0 +1,18 @@
+---
+description: VIDLIX product and engineering rules
+alwaysApply: true
+---
+
+# VIDLIX
+
+Inspect the repository before changing code. Prefer small modular changes. Reuse the design system.
+
+Phase 1 only: Instagram + Facebook. No AI, WhatsApp, YouTube, scraping, or password collection.
+
+Staging and production secrets, databases, Redis, storage, Meta apps, and Razorpay keys stay isolated.
+
+Do not invent Meta API capabilities, legal entity facts, customers, or testimonials.
+
+Automations must remain testable before activation. Webhooks must stay idempotent.
+
+After substantial changes: tests, lint, typecheck. Document architecture in BRAIN.md without pasting large source.
