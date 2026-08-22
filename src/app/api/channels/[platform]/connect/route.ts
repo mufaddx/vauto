@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { secureCookies } from "@/lib/auth/cookies";
 import { readSession } from "@/lib/auth/session";
 import { assertAbsoluteOrigin, hashNonce, resolveAppOrigin } from "@/lib/auth/oauth";
 import { randomBytes } from "node:crypto";
@@ -51,7 +52,7 @@ export async function GET(
   jar.set(CHANNEL_STATE_COOKIE, hashNonce(nonce), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: secureCookies(),
     path: "/",
     maxAge: 600,
   });

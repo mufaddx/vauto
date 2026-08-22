@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { secureCookies } from "@/lib/auth/cookies";
 
 const COOKIE = process.env.SESSION_COOKIE_NAME ?? "vidlix_session";
 
@@ -79,7 +80,7 @@ export async function setSessionCookie(token: string) {
   jar.set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: secureCookies(),
     path: "/",
     maxAge: 60 * 60 * 24 * 14,
   });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { secureCookies } from "@/lib/auth/cookies";
 import {
   assertAbsoluteOrigin,
   createOAuthState,
@@ -61,7 +62,7 @@ export async function GET(
   jar.set(stateCookieName(), hashNonce(nonce), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production" || process.env.VERCEL === "1",
+    secure: secureCookies(),
     path: "/",
     maxAge: 600,
   });

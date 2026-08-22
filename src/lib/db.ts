@@ -66,11 +66,40 @@ function pgConnectionString(raw: string) {
  * attacker who can intercept the connection can present any certificate, so it
  * has to be asked for explicitly rather than fallen into.
  */
+const PEM_HEADER = "-----BEGIN CERTIFICATE-----";
+
+/**
+ * Accepts the certificate however it survived the trip through a dashboard:
+ * a real PEM, a PEM flattened to literal \n sequences, or the whole thing
+ * base64 encoded for environments where multi-line values are awkward.
+ */
+export function normalizeCaCert(raw: string): string | null {
+  const value = raw.trim();
+  if (value.includes(PEM_HEADER)) {
+    return value.replace(/\\n/g, "\n");
+  }
+
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    if (decoded.includes(PEM_HEADER)) return decoded.replace(/\\n/g, "\n");
+  } catch {
+    // not base64
+  }
+  return null;
+}
+
 function sslConfig() {
-  const ca = envValue("DATABASE_CA_CERT");
-  if (ca) {
-    // Dashboards commonly store the PEM with literal \n sequences.
-    return { ca: ca.replace(/\\n/g, "\n"), rejectUnauthorized: true };
+  const raw = envValue("DATABASE_CA_CERT");
+  if (raw) {
+    const ca = normalizeCaCert(raw);
+    if (!ca) {
+      throw new Error(
+        "DATABASE_CA_CERT does not contain a PEM certificate. Paste the contents of the " +
+          "certificate downloaded from Supabase (Project Settings -> Database -> SSL " +
+          "Configuration), including the BEGIN and END lines. Base64 of the file also works.",
+      );
+    }
+    return { ca, rejectUnauthorized: true };
   }
 
   if (tlsVerificationDisabled()) {

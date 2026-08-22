@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { databaseTlsMode, databaseTlsVerified, publicDbError } from "@/lib/db";
+import { databaseTlsMode, databaseTlsVerified, normalizeCaCert, publicDbError } from "@/lib/db";
 
 describe("publicDbError", () => {
   it("names an untrusted certificate chain distinctly", () => {
@@ -79,5 +79,39 @@ describe("database TLS posture", () => {
     process.env.DATABASE_CA_CERT = "-----BEGIN CERTIFICATE-----";
     process.env.DATABASE_TLS_INSECURE = "true";
     expect(databaseTlsMode()).toBe("verified");
+  });
+});
+
+describe("normalizeCaCert", () => {
+  const pem = [
+    "-----BEGIN CERTIFICATE-----",
+    "MIIBpjCCAU2gAwIBAgIUKPoK",
+    "-----END CERTIFICATE-----",
+  ].join("\n");
+
+  it("accepts a real PEM unchanged", () => {
+    expect(normalizeCaCert(pem)).toBe(pem);
+  });
+
+  it("accepts a PEM flattened to literal backslash-n", () => {
+    // What a dashboard stores when it will not keep real newlines.
+    const flattened = pem.split("\n").join("\\n");
+    expect(normalizeCaCert(flattened)).toBe(pem);
+  });
+
+  it("accepts the certificate base64 encoded", () => {
+    const encoded = Buffer.from(pem, "utf8").toString("base64");
+    expect(normalizeCaCert(encoded)).toBe(pem);
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(normalizeCaCert(`  ${pem}  `)).toBe(pem);
+  });
+
+  it("rejects anything that is not a certificate", () => {
+    expect(normalizeCaCert("not a certificate")).toBeNull();
+    expect(normalizeCaCert("")).toBeNull();
+    // Valid base64 that decodes to something else must not pass.
+    expect(normalizeCaCert(Buffer.from("hello", "utf8").toString("base64"))).toBeNull();
   });
 });

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Fixed
+- `DATABASE_CA_CERT` accepts a PEM, a PEM flattened to literal `
+`, or the whole certificate base64 encoded, and rejects anything that is not a certificate with a message saying what to paste
 - Login and signup returned raw JSON to the browser on failure, dropping the user on a blank JSON page with the form gone. Browser form posts now return to the form with a readable message; API clients still get JSON with the original status
 - Database TLS failed against the Supabase pooler with "self-signed certificate in certificate chain". TLS is now configured explicitly on the pool. Verification is the default: `DATABASE_CA_CERT` verifies the chain, and skipping verification requires an explicit `DATABASE_TLS_INSECURE=true` opt-in that logs a warning. Without either, the app refuses to connect
 - The OAuth callback put raw Prisma errors into the redirect URL, exposing internal detail in the address bar and page. Errors are logged and reduced to a coded hint
@@ -11,6 +13,7 @@
 - An empty `META_GRAPH_VERSION` produced `facebook.com//dialog/oauth` and `graph.facebook.com//...`; it now falls back to `v21.0`
 
 ### Security
+- Session and OAuth state cookies were marked Secure only when `APP_ENV === "production"`. An `APP_ENV` set to an empty string in the hosting dashboard made that false in production, dropping the Secure flag. Cookies are now Secure everywhere except local development
 - `/app`, `/admin` and `/onboarding` now require a session; `/admin` also requires the `ADMIN` role
 - `SESSION_SECRET` no longer falls back to a hardcoded development value
 - Login and signup no longer issue sessions when the database is unreachable outside development

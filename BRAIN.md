@@ -86,6 +86,8 @@ as unset — use it for anything that ends up inside a URL. This bug produced a
 relative OAuth `redirect_uri` (Meta "Can't load URL", Google `invalid_request`)
 and `facebook.com//dialog/oauth` from an empty `META_GRAPH_VERSION`.
 `assertAbsoluteOrigin()` now refuses to build a relative redirect URI at all.
+The same empty-string problem hit `APP_ENV`, where it silently dropped the
+Secure flag from cookies — `secureCookies()` no longer depends on it.
 
 Vercel: GitHub `mufaddx/vauto`. Cloudflare Workers / OpenNext config has been
 removed — Vercel is the only host. The BullMQ worker (`npm run worker`) is a
