@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { readSession } from "@/lib/auth/session";
 import { getPrisma } from "@/lib/db";
 import { workspaceIdFor } from "@/lib/workspace";
-import { hashNonce, resolveAppOrigin } from "@/lib/auth/oauth";
+import { assertAbsoluteOrigin, hashNonce, resolveAppOrigin } from "@/lib/auth/oauth";
 import { encryptSecret } from "@/lib/crypto";
 import {
   exchangeMetaCode,
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
   try {
     const shortLived = await exchangeMetaCode(
       code,
-      `${resolveAppOrigin(request)}/api/channels/callback`,
+      `${assertAbsoluteOrigin(resolveAppOrigin(request))}/api/channels/callback`,
     );
     const userToken = await longLivedToken(shortLived);
     const pages = await listPages(userToken);

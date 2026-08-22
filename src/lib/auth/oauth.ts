@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { envValue } from "@/lib/env";
 
 export type OAuthProvider = "google" | "facebook";
 export type OAuthIntent = "login" | "signup";
@@ -20,41 +21,52 @@ export function allowedOAuthOrigin(origin: string) {
 }
 
 export function resolveAppOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  if (allowedOAuthOrigin(requestOrigin)) return requestOrigin;
-
-  const fromEnv = (process.env.APP_URL || process.env.MARKETING_URL || "").trim();
-  if (fromEnv) {
-    try {
-      const origin = new URL(fromEnv).origin;
-      if (allowedOAuthOrigin(origin)) return origin;
-    } catch {
-      // fall through
-    }
+  try {
+    const requestOrigin = new URL(request.url).origin;
+    if (allowedOAuthOrigin(requestOrigin)) return requestOrigin;
+  } catch {
+    // fall through to the configured origin
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "https://vidlix.in";
+  return appOrigin();
 }
 
 export function appOrigin() {
-  const fromEnv = (process.env.APP_URL || process.env.MARKETING_URL || "").trim();
+  const fromEnv = envValue("APP_URL") ?? envValue("MARKETING_URL");
   if (fromEnv) {
     try {
-      return new URL(fromEnv).origin;
+      const origin = new URL(fromEnv).origin;
+      if (origin && origin !== "null") return origin;
     } catch {
       // fall through
     }
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
+  const vercel = envValue("VERCEL_URL");
+  if (vercel) return `https://${vercel}`;
   return "https://vidlix.in";
 }
 
+/**
+ * A redirect_uri must always be absolute. An empty origin silently produces a
+ * relative path, which Meta rejects with "Can't load URL" and Google with
+ * invalid_request — so refuse to build one instead of sending users there.
+ */
+export function assertAbsoluteOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    if (!url.origin || url.origin === "null") throw new Error("empty origin");
+    if (url.protocol !== "https:" && url.hostname !== "localhost") {
+      throw new Error("insecure origin");
+    }
+    return url.origin;
+  } catch {
+    throw new Error(
+      `Cannot build an OAuth redirect URI: "${origin}" is not an absolute origin. Set APP_URL for this deployment.`,
+    );
+  }
+}
+
 export function oauthCallbackUrl(provider: OAuthProvider, origin = appOrigin()) {
-  return `${origin}/api/auth/oauth/${provider}/callback`;
+  return `${assertAbsoluteOrigin(origin)}/api/auth/oauth/${provider}/callback`;
 }
 
 export function createOAuthState(intent: OAuthIntent, origin: string) {
@@ -119,7 +131,7 @@ export function googleAuthUrl(state: string, origin: string) {
 
 export function facebookAuthUrl(state: string, origin: string) {
   const { appId } = facebookLoginCredentials();
-  const version = process.env.META_GRAPH_VERSION ?? "v21.0";
+  const version = envValue("META_GRAPH_VERSION") ?? "v21.0";
   const url = new URL(`https://www.facebook.com/${version}/dialog/oauth`);
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", oauthCallbackUrl("facebook", origin));
@@ -177,7 +189,7 @@ export async function exchangeGoogleCode(code: string, origin: string): Promise<
 
 export async function exchangeFacebookCode(code: string, origin: string): Promise<OAuthProfile> {
   const { appId, appSecret } = facebookLoginCredentials();
-  const version = process.env.META_GRAPH_VERSION ?? "v21.0";
+  const version = envValue("META_GRAPH_VERSION") ?? "v21.0";
   const tokenUrl = new URL(`https://graph.facebook.com/${version}/oauth/access_token`);
   tokenUrl.searchParams.set("client_id", appId);
   tokenUrl.searchParams.set("client_secret", appSecret);

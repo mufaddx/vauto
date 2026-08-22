@@ -6,6 +6,8 @@ const MESSAGES: Record<string, string> = {
   oauth_cancelled: "The social login was cancelled.",
   oauth_state: "The login session expired. Try Google or Facebook again.",
   oauth_provider: "That social login option is not available.",
+  app_url_not_configured:
+    "This deployment cannot build a login callback URL. Set APP_URL to the full site origin, for example https://vidlix.in.",
 };
 
 export function oauthErrorMessage(error: string | undefined) {

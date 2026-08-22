@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { readSession } from "@/lib/auth/session";
-import { hashNonce, resolveAppOrigin } from "@/lib/auth/oauth";
+import { assertAbsoluteOrigin, hashNonce, resolveAppOrigin } from "@/lib/auth/oauth";
 import { randomBytes } from "node:crypto";
 import {
   buildOAuthUrl,
@@ -43,7 +43,7 @@ export async function GET(
     );
   }
 
-  const origin = resolveAppOrigin(request);
+  const origin = assertAbsoluteOrigin(resolveAppOrigin(request));
   const nonce = randomBytes(16).toString("hex");
   const state = Buffer.from(JSON.stringify({ platform, nonce })).toString("base64url");
 

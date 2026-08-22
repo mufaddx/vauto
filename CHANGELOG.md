@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+- OAuth `redirect_uri` was emitted as a relative path when `APP_URL` was an empty string, which Meta rejects with "Can't load URL" and Google with `invalid_request`. Blank environment variables are now treated as unset, and building a relative redirect URI throws instead
+- An empty `META_GRAPH_VERSION` produced `facebook.com//dialog/oauth` and `graph.facebook.com//...`; it now falls back to `v21.0`
+
 ### Security
 - `/app`, `/admin` and `/onboarding` now require a session; `/admin` also requires the `ADMIN` role
 - `SESSION_SECRET` no longer falls back to a hardcoded development value

@@ -1,13 +1,16 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { assertServerSecret, getEnv } from "@/lib/env";
+import { assertServerSecret, envValue } from "@/lib/env";
 
 /**
  * Official Meta Graph helpers only. No scraping, cookies, or unofficial APIs.
  */
+export function graphVersion() {
+  return envValue("META_GRAPH_VERSION") ?? "v21.0";
+}
+
 export function graphUrl(path: string) {
-  const env = getEnv();
   const trimmed = path.startsWith("/") ? path : `/${path}`;
-  return `https://graph.facebook.com/${env.META_GRAPH_VERSION}${trimmed}`;
+  return `https://graph.facebook.com/${graphVersion()}${trimmed}`;
 }
 
 export function verifyMetaSignature(rawBody: string, signatureHeader: string | null) {
@@ -26,9 +29,8 @@ export function buildOAuthUrl(params: {
   state: string;
   scopes: string[];
 }) {
-  const env = getEnv();
-  const appId = assertServerSecret("META_APP_ID", env.META_APP_ID);
-  const url = new URL("https://www.facebook.com/v21.0/dialog/oauth");
+  const appId = assertServerSecret("META_APP_ID", envValue("META_APP_ID"));
+  const url = new URL(`https://www.facebook.com/${graphVersion()}/dialog/oauth`);
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", params.redirectUri);
   url.searchParams.set("state", params.state);
@@ -64,7 +66,6 @@ export type MetaPage = {
 
 /** Exchanges an OAuth code for a short-lived user access token. */
 export async function exchangeMetaCode(code: string, redirectUri: string) {
-  const env = getEnv();
   const appId = assertServerSecret("META_APP_ID", process.env.META_APP_ID);
   const appSecret = assertServerSecret("META_APP_SECRET", process.env.META_APP_SECRET);
   const url = new URL(graphUrl("/oauth/access_token"));
@@ -78,7 +79,6 @@ export async function exchangeMetaCode(code: string, redirectUri: string) {
   }
   const body = (await response.json()) as { access_token?: string };
   if (!body.access_token) throw new Error("Meta did not return an access token");
-  void env;
   return body.access_token;
 }
 

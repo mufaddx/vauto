@@ -46,11 +46,23 @@ export function isDatabaseConfigured() {
   return Boolean(process.env.DIRECT_URL || process.env.DATABASE_URL);
 }
 
-export function assertServerSecret(name: string, value: string | undefined) {
+export function assertServerSecret(name: string, value: string | null | undefined) {
   if (!value) {
     throw new Error(`${name} is not configured for this environment.`);
   }
   return value;
+}
+
+/**
+ * Reads an environment variable, treating an empty or whitespace-only value as
+ * unset. Hosting dashboards happily store "", and `??` does not catch that —
+ * which is how an empty APP_URL once produced a relative OAuth redirect_uri.
+ */
+export function envValue(name: string): string | null {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export { optionalUrl };

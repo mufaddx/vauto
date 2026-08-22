@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
+  assertAbsoluteOrigin,
   createOAuthState,
   facebookAuthUrl,
   facebookLoginConfigured,
@@ -41,7 +42,20 @@ export async function GET(
     );
   }
 
-  const origin = resolveAppOrigin(request);
+  const failPath = intent === "signup" ? "/signup" : "/login";
+
+  // Building the authorize URL throws when no absolute origin can be resolved.
+  // Surfacing that here beats sending the user to a provider error page.
+  let origin: string;
+  try {
+    origin = assertAbsoluteOrigin(resolveAppOrigin(request));
+  } catch (error) {
+    console.error("[oauth:start] origin could not be resolved", error);
+    return NextResponse.redirect(
+      new URL(`${failPath}?error=app_url_not_configured`, request.url),
+    );
+  }
+
   const { payload, nonce } = createOAuthState(intent as OAuthIntent, origin);
   const jar = await cookies();
   jar.set(stateCookieName(), hashNonce(nonce), {
@@ -52,6 +66,16 @@ export async function GET(
     maxAge: 600,
   });
 
-  const location = provider === "google" ? googleAuthUrl(payload, origin) : facebookAuthUrl(payload, origin);
-  return NextResponse.redirect(location);
+  try {
+    const location =
+      provider === "google"
+        ? googleAuthUrl(payload, origin)
+        : facebookAuthUrl(payload, origin);
+    return NextResponse.redirect(location);
+  } catch (error) {
+    console.error("[oauth:start] authorize URL could not be built", error);
+    return NextResponse.redirect(
+      new URL(`${failPath}?error=app_url_not_configured`, request.url),
+    );
+  }
 }
