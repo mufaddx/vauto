@@ -7,8 +7,16 @@ const schema = z.object({
   APP_URL: z.string().default("http://localhost:3000"),
   MARKETING_URL: z.string().default("http://localhost:3000"),
   DATABASE_URL: z.string().optional(),
+  DIRECT_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
   SESSION_SECRET: z.string().min(16).optional(),
+  ENCRYPTION_KEY: z.string().min(32).optional(),
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  FACEBOOK_LOGIN_APP_ID: z.string().optional(),
+  FACEBOOK_LOGIN_APP_SECRET: z.string().optional(),
   SESSION_COOKIE_NAME: z.string().default("vidlix_session"),
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
@@ -34,14 +42,27 @@ export function getEnv(): AppEnv {
 }
 
 export function isDatabaseConfigured() {
-  return Boolean(process.env.DATABASE_URL);
+  // The runtime prefers DIRECT_URL (session pooler); either one is enough.
+  return Boolean(process.env.DIRECT_URL || process.env.DATABASE_URL);
 }
 
-export function assertServerSecret(name: string, value: string | undefined) {
+export function assertServerSecret(name: string, value: string | null | undefined) {
   if (!value) {
     throw new Error(`${name} is not configured for this environment.`);
   }
   return value;
+}
+
+/**
+ * Reads an environment variable, treating an empty or whitespace-only value as
+ * unset. Hosting dashboards happily store "", and `??` does not catch that —
+ * which is how an empty APP_URL once produced a relative OAuth redirect_uri.
+ */
+export function envValue(name: string): string | null {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export { optionalUrl };

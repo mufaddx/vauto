@@ -1,21 +1,34 @@
-import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { notFound } from "next/navigation";
+import { PasswordForm, ProfileForm } from "@/components/app/forms/settings-forms";
+import { ConfigNotice } from "@/components/app/config-notice";
+import { tryWorkspace } from "@/lib/workspace-context";
+import { changePassword, updateProfile } from "@/lib/actions/account";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const context = await tryWorkspace("/app/settings");
+  if (!context) return <ConfigNotice title="Settings" />;
+
+  const [user, workspace] = await Promise.all([
+    context.prisma.user.findUnique({ where: { id: context.session.sub } }),
+    context.prisma.workspace.findUnique({ where: { id: context.workspaceId } }),
+  ]);
+  if (!user || !workspace) notFound();
+
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-xl space-y-6">
       <h1 className="text-2xl font-semibold">Settings</h1>
-      <form className="mt-6 space-y-4">
-        <div>
-          <Label htmlFor="firstName">First name</Label>
-          <Input id="firstName" defaultValue="Mursalim" />
-        </div>
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" defaultValue="founder@vidlix.in" />
-        </div>
-        <Button type="submit">Save Changes</Button>
-      </form>
+
+      <ProfileForm
+        action={updateProfile}
+        values={{
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          workspaceName: workspace.name,
+        }}
+      />
+
+      <PasswordForm action={changePassword} />
     </div>
   );
 }

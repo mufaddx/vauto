@@ -6,11 +6,37 @@ const MESSAGES: Record<string, string> = {
   oauth_cancelled: "The social login was cancelled.",
   oauth_state: "The login session expired. Try Google or Facebook again.",
   oauth_provider: "That social login option is not available.",
+  app_url_not_configured:
+    "This deployment cannot build a login callback URL. Set APP_URL to the full site origin, for example https://vidlix.in.",
+};
+
+const DB_HINTS: Record<string, string> = {
+  "ssl-untrusted-chain":
+    "the database TLS certificate could not be verified. Set DATABASE_CA_CERT, or check the connection URL.",
+  ssl: "the database TLS handshake failed.",
+  auth: "the database rejected the credentials.",
+  timeout: "the database did not respond in time.",
+  dns: "the database host could not be resolved.",
+  pgbouncer: "the pooled connection rejected a prepared statement. Use the session pooler URL.",
+  connect: "the database could not be reached.",
+  missing: "no database connection is configured for this deployment.",
+  "tls-not-configured":
+    "database TLS is not configured. Set DATABASE_CA_CERT for this deployment.",
 };
 
 export function oauthErrorMessage(error: string | undefined) {
   if (!error) return null;
-  return MESSAGES[error] ?? decodeURIComponent(error);
+  if (MESSAGES[error]) return MESSAGES[error];
+
+  if (error.startsWith("oauth_database_")) {
+    const hint = DB_HINTS[error.slice("oauth_database_".length)];
+    return `Login could not be completed because ${hint ?? "the database could not be reached."}`;
+  }
+  if (error === "oauth_failed") {
+    return "The social login could not be completed. Try again, or use email.";
+  }
+  // Never echo an arbitrary value back into the page.
+  return "The social login could not be completed.";
 }
 
 export function SocialAuthButtons({ intent }: { intent: "login" | "signup" }) {

@@ -1,24 +1,27 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { ChannelDetail } from "@/components/app/channel-detail";
+import { requireSession } from "@/lib/auth/session";
+import { loadChannel } from "@/lib/channels";
 
-export default function FacebookChannelPage() {
+export default async function FacebookChannelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; connected?: string; disconnected?: string }>;
+}) {
+  const session = await requireSession("/app/channels/facebook");
+  const [channel, params] = await Promise.all([
+    loadChannel(session, "FACEBOOK"),
+    searchParams,
+  ]);
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Facebook Page</h1>
-      <Card className="mt-6 space-y-2 p-6 text-sm">
-        <p>Page: not connected</p>
-        <p>Connection status: disconnected</p>
-        <p>Permissions: pending OAuth</p>
-        <p>Webhook status: not subscribed</p>
-      </Card>
-      <div className="mt-4 flex gap-3">
-        <Button>Connect Facebook</Button>
-        <Button variant="danger">Disconnect</Button>
-      </div>
-      <p className="mt-4 text-sm text-secondary">
-        Messenger Send API requires Page permissions and respects messaging windows.
-        Facebook passwords are never requested.
-      </p>
-    </div>
+    <ChannelDetail
+      platform="facebook"
+      title="Facebook"
+      channel={channel}
+      error={params.error}
+      connected={params.connected}
+      disconnected={params.disconnected}
+      note="VIDLIX connects Facebook Pages through official Meta OAuth. Page access tokens are encrypted at rest and never displayed."
+    />
   );
 }

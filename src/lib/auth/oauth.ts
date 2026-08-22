@@ -1,60 +1,97 @@
 import { createHash, randomBytes } from "node:crypto";
+import { envValue } from "@/lib/env";
 
 export type OAuthProvider = "google" | "facebook";
 export type OAuthIntent = "login" | "signup";
 
 const STATE_COOKIE = "vidlix_oauth_state";
 
+const DEFAULT_HOSTS = ["vidlix.in", "www.vidlix.in"];
+
+/**
+ * Hosts that may act as an OAuth origin. Kept to an explicit list: a wildcard
+ * over a hosting provider's domain (this once trusted every *.vercel.app site)
+ * lets anyone with an account there present a trusted origin.
+ */
+export function allowedOAuthHosts() {
+  const hosts = new Set(DEFAULT_HOSTS);
+
+  const configured = envValue("APP_URL") ?? envValue("MARKETING_URL");
+  if (configured) {
+    try {
+      hosts.add(new URL(configured).hostname);
+    } catch {
+      // ignore an unparseable APP_URL; the defaults still apply
+    }
+  }
+
+  for (const entry of (envValue("OAUTH_ALLOWED_HOSTS") ?? "").split(",")) {
+    const host = entry.trim().toLowerCase();
+    if (host) hosts.add(host);
+  }
+
+  return hosts;
+}
+
 export function allowedOAuthOrigin(origin: string) {
   try {
     const url = new URL(origin);
-    const host = url.hostname;
+    const host = url.hostname.toLowerCase();
     if (host === "localhost" || host.endsWith(".localhost")) {
       return url.protocol === "http:" || url.protocol === "https:";
     }
     if (url.protocol !== "https:") return false;
-    return host === "vidlix.in" || host === "www.vidlix.in" || host.endsWith(".vercel.app");
+    return allowedOAuthHosts().has(host);
   } catch {
     return false;
   }
 }
 
 export function resolveAppOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  if (allowedOAuthOrigin(requestOrigin)) return requestOrigin;
-
-  const fromEnv = (process.env.APP_URL || process.env.MARKETING_URL || "").trim();
-  if (fromEnv) {
-    try {
-      const origin = new URL(fromEnv).origin;
-      if (allowedOAuthOrigin(origin)) return origin;
-    } catch {
-      // fall through
-    }
+  try {
+    const requestOrigin = new URL(request.url).origin;
+    if (allowedOAuthOrigin(requestOrigin)) return requestOrigin;
+  } catch {
+    // fall through to the configured origin
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "https://vidlix.in";
+  return appOrigin();
 }
 
 export function appOrigin() {
-  const fromEnv = (process.env.APP_URL || process.env.MARKETING_URL || "").trim();
+  const fromEnv = envValue("APP_URL") ?? envValue("MARKETING_URL");
   if (fromEnv) {
     try {
-      return new URL(fromEnv).origin;
+      const origin = new URL(fromEnv).origin;
+      if (origin && origin !== "null") return origin;
     } catch {
       // fall through
     }
   }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
   return "https://vidlix.in";
 }
 
+/**
+ * A redirect_uri must always be absolute. An empty origin silently produces a
+ * relative path, which Meta rejects with "Can't load URL" and Google with
+ * invalid_request — so refuse to build one instead of sending users there.
+ */
+export function assertAbsoluteOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    if (!url.origin || url.origin === "null") throw new Error("empty origin");
+    if (url.protocol !== "https:" && url.hostname !== "localhost") {
+      throw new Error("insecure origin");
+    }
+    return url.origin;
+  } catch {
+    throw new Error(
+      `Cannot build an OAuth redirect URI: "${origin}" is not an absolute origin. Set APP_URL for this deployment.`,
+    );
+  }
+}
+
 export function oauthCallbackUrl(provider: OAuthProvider, origin = appOrigin()) {
-  return `${origin}/api/auth/oauth/${provider}/callback`;
+  return `${assertAbsoluteOrigin(origin)}/api/auth/oauth/${provider}/callback`;
 }
 
 export function createOAuthState(intent: OAuthIntent, origin: string) {
@@ -99,6 +136,21 @@ export function facebookLoginConfigured() {
   );
 }
 
+/**
+ * Business-type Meta apps cannot request `email` or `public_profile` — those
+ * are consumer permissions, and asking for them fails with "Invalid Scopes".
+ * Keeping the scope list in an env var means the Meta app type can change
+ * without a code change.
+ */
+export function facebookLoginScopes() {
+  const configured = envValue("FACEBOOK_LOGIN_SCOPES");
+  if (!configured) return ["email", "public_profile"];
+  return configured
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
 export function facebookLoginCredentials() {
   return {
     appId: process.env.FACEBOOK_LOGIN_APP_ID || process.env.META_APP_ID || "",
@@ -119,13 +171,13 @@ export function googleAuthUrl(state: string, origin: string) {
 
 export function facebookAuthUrl(state: string, origin: string) {
   const { appId } = facebookLoginCredentials();
-  const version = process.env.META_GRAPH_VERSION ?? "v21.0";
+  const version = envValue("META_GRAPH_VERSION") ?? "v21.0";
   const url = new URL(`https://www.facebook.com/${version}/dialog/oauth`);
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", oauthCallbackUrl("facebook", origin));
   url.searchParams.set("state", state);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "email,public_profile");
+  url.searchParams.set("scope", facebookLoginScopes().join(","));
   return url.toString();
 }
 
@@ -177,7 +229,7 @@ export async function exchangeGoogleCode(code: string, origin: string): Promise<
 
 export async function exchangeFacebookCode(code: string, origin: string): Promise<OAuthProfile> {
   const { appId, appSecret } = facebookLoginCredentials();
-  const version = process.env.META_GRAPH_VERSION ?? "v21.0";
+  const version = envValue("META_GRAPH_VERSION") ?? "v21.0";
   const tokenUrl = new URL(`https://graph.facebook.com/${version}/oauth/access_token`);
   tokenUrl.searchParams.set("client_id", appId);
   tokenUrl.searchParams.set("client_secret", appSecret);
@@ -200,7 +252,10 @@ export async function exchangeFacebookCode(code: string, origin: string): Promis
   };
   if (!profile.id) throw new Error("Facebook did not return a user id");
   if (!profile.email) {
-    throw new Error("Facebook did not share an email. Grant email permission and retry.");
+    // A VIDLIX account needs a unique email, so there is nothing to create here.
+    throw new Error(
+      "Facebook did not share an email address. Business-type Meta apps cannot grant the email permission — use a consumer-type app for login (FACEBOOK_LOGIN_APP_ID / FACEBOOK_LOGIN_APP_SECRET), or sign in with Google or email instead.",
+    );
   }
   return {
     provider: "facebook",

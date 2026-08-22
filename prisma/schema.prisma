@@ -113,6 +113,33 @@ model User {
   sessions    Session[]
   tickets     SupportTicket[]
   oauthAccounts OAuthAccount[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model EmailOtp {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model OAuthAccount {
@@ -388,6 +415,8 @@ model WebhookEvent {
   processedAt   DateTime?
   error         String?
   payloadHash   String?
+  payload       Json?
+  attempts      Int           @default(0)
   workspace     Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 
   @@index([status, receivedAt])

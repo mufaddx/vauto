@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
+import { envValue } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -13,6 +14,7 @@ export function publicDbError(error: unknown) {
   }
   const message = error instanceof Error ? error.message : "";
   if (/password|authentication/i.test(message)) return "auth";
+  if (/self.signed|certificate chain/i.test(message)) return "ssl-untrusted-chain";
   if (/ssl|certificate/i.test(message)) return "ssl";
   if (/timeout/i.test(message)) return "timeout";
   if (/ENOTFOUND|EAI_AGAIN/i.test(message)) return "dns";
@@ -49,10 +51,84 @@ function pgConnectionString(raw: string) {
   url.searchParams.delete("connection_limit");
   url.searchParams.delete("pool_timeout");
   url.searchParams.delete("connect_timeout");
-  if (!url.searchParams.has("sslmode")) {
-    url.searchParams.set("sslmode", "require");
-  }
+  // TLS is configured explicitly on the Pool instead, so drop sslmode to stop
+  // node-postgres deriving a conflicting setting from the URL.
+  url.searchParams.delete("sslmode");
   return url.toString();
+}
+
+/**
+ * Managed Postgres providers (Supabase included) terminate TLS with a
+ * certificate signed by their own CA, which is not in Node's trust store —
+ * hence "self-signed certificate in certificate chain".
+ *
+ * Verification is the default and the only silent path. Skipping it means an
+ * attacker who can intercept the connection can present any certificate, so it
+ * has to be asked for explicitly rather than fallen into.
+ */
+const PEM_HEADER = "-----BEGIN CERTIFICATE-----";
+
+/**
+ * Accepts the certificate however it survived the trip through a dashboard:
+ * a real PEM, a PEM flattened to literal \n sequences, or the whole thing
+ * base64 encoded for environments where multi-line values are awkward.
+ */
+export function normalizeCaCert(raw: string): string | null {
+  const value = raw.trim();
+  if (value.includes(PEM_HEADER)) {
+    return value.replace(/\\n/g, "\n");
+  }
+
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    if (decoded.includes(PEM_HEADER)) return decoded.replace(/\\n/g, "\n");
+  } catch {
+    // not base64
+  }
+  return null;
+}
+
+function sslConfig() {
+  const raw = envValue("DATABASE_CA_CERT");
+  if (raw) {
+    const ca = normalizeCaCert(raw);
+    if (!ca) {
+      throw new Error(
+        "DATABASE_CA_CERT does not contain a PEM certificate. Paste the contents of the " +
+          "certificate downloaded from Supabase (Project Settings -> Database -> SSL " +
+          "Configuration), including the BEGIN and END lines. Base64 of the file also works.",
+      );
+    }
+    return { ca, rejectUnauthorized: true };
+  }
+
+  if (tlsVerificationDisabled()) {
+    console.warn(
+      "[db] DATABASE_TLS_INSECURE is set: the database certificate chain is NOT verified. " +
+        "Traffic is encrypted but open to interception. Set DATABASE_CA_CERT and remove this flag.",
+    );
+    return { rejectUnauthorized: false };
+  }
+
+  throw new Error(
+    "Database TLS is not configured. Set DATABASE_CA_CERT to your provider's CA certificate " +
+      "(Supabase: Project Settings -> Database -> SSL Configuration). To connect without " +
+      "verifying the certificate chain, set DATABASE_TLS_INSECURE=true — this is not safe for production.",
+  );
+}
+
+export function tlsVerificationDisabled() {
+  return envValue("DATABASE_TLS_INSECURE") === "true";
+}
+
+export function databaseTlsVerified() {
+  return Boolean(envValue("DATABASE_CA_CERT"));
+}
+
+/** Reported by /api/health so the active TLS posture is never a guess. */
+export function databaseTlsMode(): "verified" | "insecure" | "unconfigured" {
+  if (databaseTlsVerified()) return "verified";
+  return tlsVerificationDisabled() ? "insecure" : "unconfigured";
 }
 
 function runtimeConnectionString() {
@@ -75,6 +151,7 @@ export function getPrisma(): PrismaClient | null {
     }
     const pool = new Pool({
       connectionString,
+      ssl: sslConfig(),
       max: 1,
       connectionTimeoutMillis: 15_000,
     });
@@ -85,7 +162,14 @@ export function getPrisma(): PrismaClient | null {
 }
 
 export async function pingDatabase() {
-  const prisma = getPrisma();
+  let prisma: PrismaClient | null;
+  try {
+    prisma = getPrisma();
+  } catch (error) {
+    // A TLS misconfiguration must be reportable, not a crashed health check.
+    console.error("[db] client could not be created", error);
+    return { ok: false as const, hint: "tls-not-configured" };
+  }
   if (!prisma) return { ok: false as const, hint: "missing" };
   try {
     await prisma.$queryRaw`SELECT 1`;

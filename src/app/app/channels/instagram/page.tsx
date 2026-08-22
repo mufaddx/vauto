@@ -1,26 +1,27 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { ChannelDetail } from "@/components/app/channel-detail";
+import { requireSession } from "@/lib/auth/session";
+import { loadChannel } from "@/lib/channels";
 
-export default function InstagramChannelPage() {
+export default async function InstagramChannelPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; connected?: string; disconnected?: string }>;
+}) {
+  const session = await requireSession("/app/channels/instagram");
+  const [channel, params] = await Promise.all([
+    loadChannel(session, "INSTAGRAM"),
+    searchParams,
+  ]);
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Instagram</h1>
-      <Card className="mt-6 space-y-2 p-6 text-sm">
-        <p>Account: not connected</p>
-        <p>Account type: professional accounts via Meta</p>
-        <p>Permissions: pending OAuth</p>
-        <p>Webhook status: not subscribed</p>
-        <p>Last event received: —</p>
-        <p className="text-muted">Access tokens are never displayed.</p>
-      </Card>
-      <div className="mt-4 flex gap-3">
-        <Button>Connect Instagram</Button>
-        <Button variant="danger">Disconnect</Button>
-      </div>
-      <p className="mt-4 text-sm text-secondary">
-        VIDLIX uses official Meta OAuth. Instagram passwords are never requested.
-        Private replies follow Meta’s documented limits.
-      </p>
-    </div>
+    <ChannelDetail
+      platform="instagram"
+      title="Instagram"
+      channel={channel}
+      error={params.error}
+      connected={params.connected}
+      disconnected={params.disconnected}
+      note="VIDLIX uses official Meta OAuth. Instagram passwords are never requested. Private replies follow Meta's documented limits."
+    />
   );
 }

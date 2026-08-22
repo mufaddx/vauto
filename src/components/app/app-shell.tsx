@@ -16,6 +16,7 @@ import {
   Share2,
   Users,
   Workflow,
+  LogOut,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -37,7 +38,15 @@ const items = [
   { href: "/app/settings", label: "Settings", icon: Settings },
 ];
 
-export function AppShell({ children }: { children: ReactNode }) {
+export type AppShellUser = { firstName: string; email: string };
+
+export function AppShell({
+  children,
+  user,
+}: {
+  children: ReactNode;
+  user: AppShellUser;
+}) {
   const pathname = usePathname();
   return (
     <div className="min-h-full bg-background-secondary">
@@ -65,8 +74,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur-md">
           <p className="text-sm font-medium lg:hidden">VIDLIX</p>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-medium leading-tight">{user.firstName}</p>
+              <p className="text-xs leading-tight text-secondary">{user.email}</p>
+            </div>
             <ThemeSwitcher />
+            <form action="/api/auth/logout" method="post">
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm text-secondary hover:text-primary"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Log out</span>
+              </button>
+            </form>
           </div>
         </header>
         <div className="px-4 pb-24 pt-6 sm:px-6">{children}</div>
