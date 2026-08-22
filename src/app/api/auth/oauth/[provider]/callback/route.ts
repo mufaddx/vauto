@@ -7,6 +7,7 @@ import {
   exchangeGoogleCode,
   hashNonce,
   parseOAuthState,
+  resolveAppOrigin,
   stateCookieName,
   type OAuthProfile,
   type OAuthProvider,
@@ -91,7 +92,9 @@ export async function GET(
 
   try {
     const profile =
-      provider === "google" ? await exchangeGoogleCode(code) : await exchangeFacebookCode(code);
+      provider === "google"
+        ? await exchangeGoogleCode(code, state.origin ?? resolveAppOrigin(request))
+        : await exchangeFacebookCode(code, state.origin ?? resolveAppOrigin(request));
     const user = await upsertUser(profile);
     const token = await createSessionToken({
       sub: user.id,

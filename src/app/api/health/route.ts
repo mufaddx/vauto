@@ -8,7 +8,8 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     env: process.env.APP_ENV ?? "development",
-    database,
+    database: database.ok,
+    databaseHint: database.hint,
     redis: Boolean(redis),
   });
 }

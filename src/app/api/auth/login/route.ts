@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/password";
-import { getPrisma } from "@/lib/db";
+import { getPrisma, publicDbError } from "@/lib/db";
 
 export async function POST(request: Request) {
   const form = await request.formData();
@@ -23,12 +23,12 @@ export async function POST(request: Request) {
   let user;
   try {
     user = await prisma.user.findUnique({ where: { email } });
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       {
         title: "Login could not be completed",
-        reason: "The database could not be reached. Check DATABASE_URL on this deployment.",
-        action: "Retry after the database connection is saved and the app is redeployed.",
+        reason: "The database could not be reached. Check DATABASE_URL and DIRECT_URL on this deployment.",
+        action: "Open /api/health and confirm database is true. Hint: " + publicDbError(error),
       },
       { status: 503 },
     );

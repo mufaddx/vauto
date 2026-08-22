@@ -7,6 +7,7 @@ import {
   googleAuthUrl,
   googleConfigured,
   hashNonce,
+  resolveAppOrigin,
   stateCookieName,
   type OAuthIntent,
   type OAuthProvider,
@@ -40,16 +41,17 @@ export async function GET(
     );
   }
 
-  const { payload, nonce } = createOAuthState(intent as OAuthIntent);
+  const origin = resolveAppOrigin(request);
+  const { payload, nonce } = createOAuthState(intent as OAuthIntent, origin);
   const jar = await cookies();
   jar.set(stateCookieName(), hashNonce(nonce), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: process.env.APP_ENV === "production" || process.env.VERCEL === "1",
     path: "/",
     maxAge: 600,
   });
 
-  const location = provider === "google" ? googleAuthUrl(payload) : facebookAuthUrl(payload);
+  const location = provider === "google" ? googleAuthUrl(payload, origin) : facebookAuthUrl(payload, origin);
   return NextResponse.redirect(location);
 }

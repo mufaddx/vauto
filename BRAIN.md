@@ -53,7 +53,7 @@ See `prisma/schema.prisma`. Applied on Supabase project `egflpmfnnulatrmciqmm` (
 
 Separate staging and production for database, Redis, storage, Meta, Razorpay, logs, and webhooks. Production only after staging QA and founder approval.
 
-Vercel: GitHub `mufaddx/vauto`. Empty `MARKETING_URL` is invalid (`??` does not skip `""`); metadata base falls back to `VERCEL_URL` or `https://vidlix.in`. Cloudflare Workers was over the free 3 MiB limit — Vercel is the app host.
+Vercel: GitHub `mufaddx/vauto`. Empty `MARKETING_URL` is invalid (`??` does not skip `""`); metadata base falls back to `VERCEL_URL` or `https://vidlix.in`. Cloudflare Workers was over the free 3 MiB limit — Vercel is the app host. OAuth callback URLs are derived from the request origin (`https://vidlix.in/.../callback`). Prisma runtime prefers `DIRECT_URL` (session pooler) then `DATABASE_URL`.
 
 ## Known limitations
 
