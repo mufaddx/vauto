@@ -11,6 +11,21 @@ const inter = Inter({
   display: "swap",
 });
 
+function metadataBaseUrl() {
+  const fromEnv = process.env.MARKETING_URL || process.env.APP_URL;
+  if (fromEnv) {
+    try {
+      return new URL(fromEnv);
+    } catch {
+      // empty or invalid env values fall through
+    }
+  }
+  if (process.env.VERCEL_URL) {
+    return new URL(`https://${process.env.VERCEL_URL}`);
+  }
+  return new URL("https://vidlix.in");
+}
+
 export const metadata: Metadata = {
   title: {
     default: `${site.name} — ${site.tagline}`,
@@ -18,7 +33,7 @@ export const metadata: Metadata = {
   },
   description:
     "Automate Instagram and Facebook conversations with simple, powerful workflows built for businesses and creators.",
-  metadataBase: new URL(process.env.MARKETING_URL ?? "https://vidlix.in"),
+  metadataBase: metadataBaseUrl(),
 };
 
 export default function RootLayout({
