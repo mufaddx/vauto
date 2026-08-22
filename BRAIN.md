@@ -36,6 +36,7 @@ Project memory for VIDLIX. Do not paste large source files here.
 - Meta channel connect/disconnect with AES-256-GCM encrypted page tokens
 - Razorpay order creation, checkout widget, signature verification, webhook-driven subscription and invoice updates
 - Password reset with hashed single-use tokens and a pluggable mailer
+- Email code (OTP) sign-in and sign-up through Resend; passwords remain available but optional
 - Redis-backed rate limiting with an in-memory fallback
 - Worker that runs comments through the response engine and sends replies
 - Full CRUD via server actions for campaigns, campaign posts, automations, keyword rules, templates, contacts, tags, conversations, business information, profile, and password

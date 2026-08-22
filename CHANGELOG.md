@@ -17,6 +17,7 @@
 - Meta webhook verify token is now compared in constant time
 
 ### Added
+- Email code (OTP) sign-in: a six-digit code sent through Resend both logs in and signs up, so no password is needed. Codes are hashed at rest, single-use, expire in 10 minutes, are invalidated when a newer one is issued, and are burned after 5 wrong attempts. Requests are rate limited per address and per IP
 - CRUD for campaigns, campaign posts, automations, keyword rules, templates, contacts, tags, conversations, business information, and account settings, all through workspace-scoped server actions
 - Automation test-before-activate is now enforced on the server
 - Onboarding answers are persisted instead of being discarded
