@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getPrisma } from "@/lib/db";
-import { createSessionToken, setSessionCookie } from "@/lib/auth/session";
+import { createSessionToken, setSessionCookie, type SessionRole } from "@/lib/auth/session";
+import { ensureWorkspace } from "@/lib/workspace";
 import {
   exchangeFacebookCode,
   exchangeGoogleCode,
@@ -25,6 +26,8 @@ async function upsertUser(profile: OAuthProfile) {
       id: `oauth-${profile.provider}-${profile.providerAccountId}`,
       email: profile.email,
       firstName: profile.firstName,
+      role: "USER" as SessionRole,
+      workspaceId: undefined as string | undefined,
       isNew: true,
     };
   }
@@ -39,7 +42,8 @@ async function upsertUser(profile: OAuthProfile) {
     include: { user: true },
   });
   if (existingLink) {
-    return { ...existingLink.user, isNew: false };
+    const workspaceId = await ensureWorkspace(prisma, existingLink.user);
+    return { ...existingLink.user, workspaceId, isNew: false };
   }
 
   const byEmail = await prisma.user.findUnique({ where: { email: profile.email } });
@@ -61,7 +65,8 @@ async function upsertUser(profile: OAuthProfile) {
     },
   });
 
-  return { ...user, isNew: !byEmail };
+  const workspaceId = await ensureWorkspace(prisma, user);
+  return { ...user, workspaceId, isNew: !byEmail };
 }
 
 export async function GET(
@@ -100,7 +105,8 @@ export async function GET(
       sub: user.id,
       email: user.email,
       firstName: user.firstName,
-      role: "USER",
+      role: (user.role ?? "USER") as SessionRole,
+      workspaceId: user.workspaceId,
     });
     await setSessionCookie(token);
     const next = user.isNew ? "/onboarding" : "/app";

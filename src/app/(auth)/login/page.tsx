@@ -6,9 +6,10 @@ import { Input, Label } from "@/components/ui/input";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const nextPath = next && next.startsWith("/") && !next.startsWith("//") ? next : "";
   const message = oauthErrorMessage(error);
 
   return (
@@ -26,6 +27,7 @@ export default async function LoginPage({
         <SocialAuthButtons intent="login" />
       </div>
       <form action="/api/auth/login" method="post" className="mt-4 space-y-4">
+        {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
         <div>
           <Label htmlFor="email">Email</Label>
           <Input id="email" name="email" type="email" autoComplete="email" required />

@@ -51,13 +51,15 @@ function Scene({
   useEffect(() => {
     if (reduce || step < 2) return;
     let i = 0;
-    setTyped("");
     const id = window.setInterval(() => {
       i += 1;
       setTyped(scene.comment.slice(0, i));
       if (i >= scene.comment.length) window.clearInterval(id);
     }, 55);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearInterval(id);
+      setTyped("");
+    };
   }, [reduce, scene.comment, step]);
 
   return (
