@@ -53,6 +53,8 @@ See `prisma/schema.prisma`. Applied on Supabase project `egflpmfnnulatrmciqmm` (
 
 Separate staging and production for database, Redis, storage, Meta, Razorpay, logs, and webhooks. Production only after staging QA and founder approval.
 
+Vercel: GitHub `mufaddx/vauto`. Empty `MARKETING_URL` is invalid (`??` does not skip `""`); metadata base falls back to `VERCEL_URL` or `https://vidlix.in`. Cloudflare Workers was over the free 3 MiB limit — Vercel is the app host.
+
 ## Known limitations
 
 - UI uses labelled demo data when the database is empty
