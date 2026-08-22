@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRedis } from "@/lib/queues";
-import { pingDatabase } from "@/lib/db";
+import { databaseTlsVerified, pingDatabase } from "@/lib/db";
 import { sessionSecretConfigured } from "@/lib/auth/session";
 import { encryptionConfigured } from "@/lib/crypto";
 import { metaConfigured } from "@/lib/meta/client";
@@ -28,6 +28,7 @@ export async function GET() {
     googleLogin: googleConfigured(),
     facebookLogin: facebookLoginConfigured(),
     mail: mailConfigured(),
+    databaseTlsVerified: databaseTlsVerified(),
   };
 
   // These must be present for the product to work at all.

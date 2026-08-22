@@ -111,6 +111,21 @@ export function facebookLoginConfigured() {
   );
 }
 
+/**
+ * Business-type Meta apps cannot request `email` or `public_profile` — those
+ * are consumer permissions, and asking for them fails with "Invalid Scopes".
+ * Keeping the scope list in an env var means the Meta app type can change
+ * without a code change.
+ */
+export function facebookLoginScopes() {
+  const configured = envValue("FACEBOOK_LOGIN_SCOPES");
+  if (!configured) return ["email", "public_profile"];
+  return configured
+    .split(",")
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
 export function facebookLoginCredentials() {
   return {
     appId: process.env.FACEBOOK_LOGIN_APP_ID || process.env.META_APP_ID || "",
@@ -137,7 +152,7 @@ export function facebookAuthUrl(state: string, origin: string) {
   url.searchParams.set("redirect_uri", oauthCallbackUrl("facebook", origin));
   url.searchParams.set("state", state);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "email,public_profile");
+  url.searchParams.set("scope", facebookLoginScopes().join(","));
   return url.toString();
 }
 
@@ -212,7 +227,10 @@ export async function exchangeFacebookCode(code: string, origin: string): Promis
   };
   if (!profile.id) throw new Error("Facebook did not return a user id");
   if (!profile.email) {
-    throw new Error("Facebook did not share an email. Grant email permission and retry.");
+    // A VIDLIX account needs a unique email, so there is nothing to create here.
+    throw new Error(
+      "Facebook did not share an email address. Business-type Meta apps cannot grant the email permission — use a consumer-type app for login (FACEBOOK_LOGIN_APP_ID / FACEBOOK_LOGIN_APP_SECRET), or sign in with Google or email instead.",
+    );
   }
   return {
     provider: "facebook",

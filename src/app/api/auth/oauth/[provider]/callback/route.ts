@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getPrisma } from "@/lib/db";
+import { getPrisma, publicDbError } from "@/lib/db";
 import { createSessionToken, setSessionCookie, type SessionRole } from "@/lib/auth/session";
 import { ensureWorkspace } from "@/lib/workspace";
 import {
@@ -112,8 +112,14 @@ export async function GET(
     const next = user.isNew ? "/onboarding" : "/app";
     return NextResponse.redirect(new URL(next, request.url));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "oauth_failed";
-    const encoded = encodeURIComponent(message);
-    return NextResponse.redirect(new URL(`${failPath}?error=${encoded}`, request.url));
+    // Internal errors must never reach the URL bar. Log the detail, show a code.
+    console.error("[oauth:callback] failed", error);
+    const message = error instanceof Error ? error.message : "";
+    const code = /prisma|database|TLS|certificate|connection/i.test(message)
+      ? `oauth_database_${publicDbError(error)}`
+      : "oauth_failed";
+    return NextResponse.redirect(
+      new URL(`${failPath}?error=${encodeURIComponent(code)}`, request.url),
+    );
   }
 }

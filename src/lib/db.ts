@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
+import { envValue } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -13,6 +14,7 @@ export function publicDbError(error: unknown) {
   }
   const message = error instanceof Error ? error.message : "";
   if (/password|authentication/i.test(message)) return "auth";
+  if (/self.signed|certificate chain/i.test(message)) return "ssl-untrusted-chain";
   if (/ssl|certificate/i.test(message)) return "ssl";
   if (/timeout/i.test(message)) return "timeout";
   if (/ENOTFOUND|EAI_AGAIN/i.test(message)) return "dns";
@@ -49,10 +51,31 @@ function pgConnectionString(raw: string) {
   url.searchParams.delete("connection_limit");
   url.searchParams.delete("pool_timeout");
   url.searchParams.delete("connect_timeout");
-  if (!url.searchParams.has("sslmode")) {
-    url.searchParams.set("sslmode", "require");
-  }
+  // TLS is configured explicitly on the Pool instead, so drop sslmode to stop
+  // node-postgres deriving a conflicting setting from the URL.
+  url.searchParams.delete("sslmode");
   return url.toString();
+}
+
+/**
+ * Managed Postgres providers (Supabase included) terminate TLS with a
+ * certificate signed by their own CA, which is not in Node's trust store —
+ * hence "self-signed certificate in certificate chain".
+ *
+ * Supplying DATABASE_CA_CERT keeps full verification. Without it the
+ * connection is still encrypted, but the certificate chain is not verified.
+ */
+function sslConfig() {
+  const ca = envValue("DATABASE_CA_CERT");
+  if (ca) {
+    // Dashboards commonly store the PEM with literal \n sequences.
+    return { ca: ca.replace(/\\n/g, "\n"), rejectUnauthorized: true };
+  }
+  return { rejectUnauthorized: false };
+}
+
+export function databaseTlsVerified() {
+  return Boolean(envValue("DATABASE_CA_CERT"));
 }
 
 function runtimeConnectionString() {
@@ -75,6 +98,7 @@ export function getPrisma(): PrismaClient | null {
     }
     const pool = new Pool({
       connectionString,
+      ssl: sslConfig(),
       max: 1,
       connectionTimeoutMillis: 15_000,
     });
