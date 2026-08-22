@@ -49,6 +49,7 @@ yarn-error.log*
 .claude-flow
 .open-next
 .wrangler
+.dev.vars
 
 # typescript
 *.tsbuildinfo
