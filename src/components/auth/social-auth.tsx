@@ -20,6 +20,8 @@ const DB_HINTS: Record<string, string> = {
   pgbouncer: "the pooled connection rejected a prepared statement. Use the session pooler URL.",
   connect: "the database could not be reached.",
   missing: "no database connection is configured for this deployment.",
+  "tls-not-configured":
+    "database TLS is not configured. Set DATABASE_CA_CERT for this deployment.",
 };
 
 export function oauthErrorMessage(error: string | undefined) {

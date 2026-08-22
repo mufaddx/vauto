@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Fixed
-- Database TLS failed against the Supabase pooler with "self-signed certificate in certificate chain". TLS is now configured explicitly on the pool; `DATABASE_CA_CERT` enables full chain verification
+- Database TLS failed against the Supabase pooler with "self-signed certificate in certificate chain". TLS is now configured explicitly on the pool. Verification is the default: `DATABASE_CA_CERT` verifies the chain, and skipping verification requires an explicit `DATABASE_TLS_INSECURE=true` opt-in that logs a warning. Without either, the app refuses to connect
 - The OAuth callback put raw Prisma errors into the redirect URL, exposing internal detail in the address bar and page. Errors are logged and reduced to a coded hint
 - Facebook login scopes are configurable via `FACEBOOK_LOGIN_SCOPES`; business-type Meta apps cannot request `email` or `public_profile`
 - OAuth `redirect_uri` was emitted as a relative path when `APP_URL` was an empty string, which Meta rejects with "Can't load URL" and Google with `invalid_request`. Blank environment variables are now treated as unset, and building a relative redirect URI throws instead

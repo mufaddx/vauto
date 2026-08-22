@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRedis } from "@/lib/queues";
-import { databaseTlsVerified, pingDatabase } from "@/lib/db";
+import { databaseTlsMode, databaseTlsVerified, pingDatabase } from "@/lib/db";
 import { sessionSecretConfigured } from "@/lib/auth/session";
 import { encryptionConfigured } from "@/lib/crypto";
 import { metaConfigured } from "@/lib/meta/client";
@@ -50,6 +50,7 @@ export async function GET() {
       env: process.env.APP_ENV ?? "development",
       database: database.ok,
       databaseHint: database.hint,
+      databaseTls: databaseTlsMode(),
       redis: Boolean(redis),
       integrations,
       missingRequired: missing,

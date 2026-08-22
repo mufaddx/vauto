@@ -10,9 +10,23 @@ Do not commit `.env`, `.env.local`, `.env.staging`, or `.env.production`.
 | --- | --- |
 | `DATABASE_URL` | Postgres pooler URL (Supabase `:6543`). Used for migrations and as a runtime fallback. |
 | `DIRECT_URL` | Session-mode pooler (`:5432`). Preferred at runtime by the Prisma pg adapter. |
+| `DATABASE_CA_CERT` | The provider's CA certificate, so the database TLS chain is verified. Supabase: Project Settings → Database → SSL Configuration. Without it the app refuses to connect unless `DATABASE_TLS_INSECURE=true`. |
 | `SESSION_SECRET` | 32+ characters. **There is no fallback** — sessions throw without it. |
 
 `/api/health` returns `503` and lists `missingRequired` when either is absent.
+
+## Database TLS
+
+Managed providers terminate TLS with their own CA, which is not in Node's trust
+store — the symptom is `self-signed certificate in certificate chain`.
+
+| Setting | Result |
+| --- | --- |
+| `DATABASE_CA_CERT` set | Chain verified. This is the correct production setting. |
+| `DATABASE_TLS_INSECURE=true` | Connects and encrypts, but does **not** verify the certificate. Anyone able to intercept the connection can present their own. Development and unblocking only. |
+| Neither | The app refuses to create a database client and says so. |
+
+`/api/health` reports the active mode as `databaseTls`.
 
 ## Required per feature
 

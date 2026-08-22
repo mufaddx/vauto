@@ -62,8 +62,9 @@ function pgConnectionString(raw: string) {
  * certificate signed by their own CA, which is not in Node's trust store —
  * hence "self-signed certificate in certificate chain".
  *
- * Supplying DATABASE_CA_CERT keeps full verification. Without it the
- * connection is still encrypted, but the certificate chain is not verified.
+ * Verification is the default and the only silent path. Skipping it means an
+ * attacker who can intercept the connection can present any certificate, so it
+ * has to be asked for explicitly rather than fallen into.
  */
 function sslConfig() {
   const ca = envValue("DATABASE_CA_CERT");
@@ -71,11 +72,34 @@ function sslConfig() {
     // Dashboards commonly store the PEM with literal \n sequences.
     return { ca: ca.replace(/\\n/g, "\n"), rejectUnauthorized: true };
   }
-  return { rejectUnauthorized: false };
+
+  if (tlsVerificationDisabled()) {
+    console.warn(
+      "[db] DATABASE_TLS_INSECURE is set: the database certificate chain is NOT verified. " +
+        "Traffic is encrypted but open to interception. Set DATABASE_CA_CERT and remove this flag.",
+    );
+    return { rejectUnauthorized: false };
+  }
+
+  throw new Error(
+    "Database TLS is not configured. Set DATABASE_CA_CERT to your provider's CA certificate " +
+      "(Supabase: Project Settings -> Database -> SSL Configuration). To connect without " +
+      "verifying the certificate chain, set DATABASE_TLS_INSECURE=true — this is not safe for production.",
+  );
+}
+
+export function tlsVerificationDisabled() {
+  return envValue("DATABASE_TLS_INSECURE") === "true";
 }
 
 export function databaseTlsVerified() {
   return Boolean(envValue("DATABASE_CA_CERT"));
+}
+
+/** Reported by /api/health so the active TLS posture is never a guess. */
+export function databaseTlsMode(): "verified" | "insecure" | "unconfigured" {
+  if (databaseTlsVerified()) return "verified";
+  return tlsVerificationDisabled() ? "insecure" : "unconfigured";
 }
 
 function runtimeConnectionString() {
@@ -109,7 +133,14 @@ export function getPrisma(): PrismaClient | null {
 }
 
 export async function pingDatabase() {
-  const prisma = getPrisma();
+  let prisma: PrismaClient | null;
+  try {
+    prisma = getPrisma();
+  } catch (error) {
+    // A TLS misconfiguration must be reportable, not a crashed health check.
+    console.error("[db] client could not be created", error);
+    return { ok: false as const, hint: "tls-not-configured" };
+  }
   if (!prisma) return { ok: false as const, hint: "missing" };
   try {
     await prisma.$queryRaw`SELECT 1`;

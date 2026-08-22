@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { databaseTlsVerified, publicDbError } from "@/lib/db";
+import { databaseTlsMode, databaseTlsVerified, publicDbError } from "@/lib/db";
 
 describe("publicDbError", () => {
   it("names an untrusted certificate chain distinctly", () => {
@@ -32,12 +32,14 @@ describe("publicDbError", () => {
   });
 });
 
-describe("databaseTlsVerified", () => {
+describe("database TLS posture", () => {
   beforeEach(() => {
     delete process.env.DATABASE_CA_CERT;
+    delete process.env.DATABASE_TLS_INSECURE;
   });
   afterEach(() => {
     delete process.env.DATABASE_CA_CERT;
+    delete process.env.DATABASE_TLS_INSECURE;
   });
 
   it("is false without a CA certificate", () => {
@@ -49,5 +51,33 @@ describe("databaseTlsVerified", () => {
   it("is true once a CA certificate is supplied", () => {
     process.env.DATABASE_CA_CERT = "-----BEGIN CERTIFICATE-----";
     expect(databaseTlsVerified()).toBe(true);
+  });
+
+  it("reports unconfigured rather than silently skipping verification", () => {
+    expect(databaseTlsMode()).toBe("unconfigured");
+  });
+
+  it("reports insecure only on an explicit opt-in", () => {
+    process.env.DATABASE_TLS_INSECURE = "true";
+    expect(databaseTlsMode()).toBe("insecure");
+  });
+
+  it("does not accept a truthy-looking value as the opt-in", () => {
+    // Only "true" counts, so "1" or "yes" cannot quietly disable verification.
+    for (const value of ["1", "yes", "TRUE", "on", ""]) {
+      process.env.DATABASE_TLS_INSECURE = value;
+      expect(databaseTlsMode()).toBe("unconfigured");
+    }
+  });
+
+  it("tolerates surrounding whitespace on the opt-in", () => {
+    process.env.DATABASE_TLS_INSECURE = "  true  ";
+    expect(databaseTlsMode()).toBe("insecure");
+  });
+
+  it("prefers verification even if the insecure flag is also set", () => {
+    process.env.DATABASE_CA_CERT = "-----BEGIN CERTIFICATE-----";
+    process.env.DATABASE_TLS_INSECURE = "true";
+    expect(databaseTlsMode()).toBe("verified");
   });
 });
