@@ -42,6 +42,7 @@ store — the symptom is `self-signed certificate in certificate chain`.
 | `FACEBOOK_LOGIN_APP_ID` / `FACEBOOK_LOGIN_APP_SECRET` | Facebook login button (falls back to the `META_*` pair). |
 | `RESEND_API_KEY` / `MAIL_FROM` | Password reset emails. Without them the reset link is only written to the server log. |
 | `WORKER_CONCURRENCY` | Webhook worker parallelism. Defaults to 5. |
+| `OAUTH_ALLOWED_HOSTS` | Extra hosts allowed to act as an OAuth origin, comma separated. The product domain and `APP_URL`'s host are always allowed. |
 | Storage credentials | S3-compatible object storage (not yet wired to any feature). |
 
 Generate an encryption key:

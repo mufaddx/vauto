@@ -6,15 +6,42 @@ export type OAuthIntent = "login" | "signup";
 
 const STATE_COOKIE = "vidlix_oauth_state";
 
+const DEFAULT_HOSTS = ["vidlix.in", "www.vidlix.in"];
+
+/**
+ * Hosts that may act as an OAuth origin. Kept to an explicit list: a wildcard
+ * over a hosting provider's domain (this once trusted every *.vercel.app site)
+ * lets anyone with an account there present a trusted origin.
+ */
+export function allowedOAuthHosts() {
+  const hosts = new Set(DEFAULT_HOSTS);
+
+  const configured = envValue("APP_URL") ?? envValue("MARKETING_URL");
+  if (configured) {
+    try {
+      hosts.add(new URL(configured).hostname);
+    } catch {
+      // ignore an unparseable APP_URL; the defaults still apply
+    }
+  }
+
+  for (const entry of (envValue("OAUTH_ALLOWED_HOSTS") ?? "").split(",")) {
+    const host = entry.trim().toLowerCase();
+    if (host) hosts.add(host);
+  }
+
+  return hosts;
+}
+
 export function allowedOAuthOrigin(origin: string) {
   try {
     const url = new URL(origin);
-    const host = url.hostname;
+    const host = url.hostname.toLowerCase();
     if (host === "localhost" || host.endsWith(".localhost")) {
       return url.protocol === "http:" || url.protocol === "https:";
     }
     if (url.protocol !== "https:") return false;
-    return host === "vidlix.in" || host === "www.vidlix.in" || host.endsWith(".vercel.app");
+    return allowedOAuthHosts().has(host);
   } catch {
     return false;
   }
@@ -40,8 +67,6 @@ export function appOrigin() {
       // fall through
     }
   }
-  const vercel = envValue("VERCEL_URL");
-  if (vercel) return `https://${vercel}`;
   return "https://vidlix.in";
 }
 

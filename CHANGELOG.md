@@ -13,6 +13,7 @@
 - An empty `META_GRAPH_VERSION` produced `facebook.com//dialog/oauth` and `graph.facebook.com//...`; it now falls back to `v21.0`
 
 ### Security
+- OAuth origins are an explicit allowlist instead of a wildcard over `*.vercel.app`, which trusted every site hosted there
 - Session and OAuth state cookies were marked Secure only when `APP_ENV === "production"`. An `APP_ENV` set to an empty string in the hosting dashboard made that false in production, dropping the Secure flag. Cookies are now Secure everywhere except local development
 - `/app`, `/admin` and `/onboarding` now require a session; `/admin` also requires the `ADMIN` role
 - `SESSION_SECRET` no longer falls back to a hardcoded development value
@@ -35,6 +36,7 @@
 - Expanded `/api/health` integration report
 
 ### Changed
+- Documentation targets Hostinger for the app and Supabase for the database; Vercel-specific origin handling removed
 - Rate limiting is Redis-backed with an in-memory fallback
 - Cloudflare Workers / OpenNext build path removed; Vercel is the only host
 

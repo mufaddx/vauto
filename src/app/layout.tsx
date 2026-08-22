@@ -20,9 +20,6 @@ function metadataBaseUrl() {
       // empty or invalid env values fall through
     }
   }
-  if (process.env.VERCEL_URL) {
-    return new URL(`https://${process.env.VERCEL_URL}`);
-  }
   return new URL("https://vidlix.in");
 }
 

@@ -12,7 +12,7 @@ import {
 const ENV_KEYS = [
   "APP_URL",
   "MARKETING_URL",
-  "VERCEL_URL",
+  "OAUTH_ALLOWED_HOSTS",
   "META_GRAPH_VERSION",
   "GOOGLE_CLIENT_ID",
   "FACEBOOK_LOGIN_APP_ID",
@@ -34,7 +34,7 @@ describe("origin resolution", () => {
     expect(appOrigin()).toBe("https://vidlix.in");
   });
 
-  it("prefers APP_URL, then MARKETING_URL, then VERCEL_URL", () => {
+  it("prefers APP_URL, then MARKETING_URL, then the product domain", () => {
     process.env.MARKETING_URL = "https://vidlix.in";
     expect(appOrigin()).toBe("https://vidlix.in");
 
@@ -43,8 +43,7 @@ describe("origin resolution", () => {
 
     delete process.env.APP_URL;
     delete process.env.MARKETING_URL;
-    process.env.VERCEL_URL = "vauto-preview.vercel.app";
-    expect(appOrigin()).toBe("https://vauto-preview.vercel.app");
+    expect(appOrigin()).toBe("https://vidlix.in");
   });
 
   it("falls back to the configured origin when the request URL is unusable", () => {
@@ -135,8 +134,29 @@ describe("allowedOAuthOrigin", () => {
   it("allows the product hosts and previews", () => {
     expect(allowedOAuthOrigin("https://vidlix.in")).toBe(true);
     expect(allowedOAuthOrigin("https://www.vidlix.in")).toBe(true);
-    expect(allowedOAuthOrigin("https://vauto-abc.vercel.app")).toBe(true);
     expect(allowedOAuthOrigin("http://localhost:3000")).toBe(true);
+  });
+
+  it("no longer trusts every site on a hosting provider's domain", () => {
+    // A wildcard over *.vercel.app let anyone with an account there present
+    // a trusted origin.
+    expect(allowedOAuthOrigin("https://vauto-abc.vercel.app")).toBe(false);
+    expect(allowedOAuthOrigin("https://evil.vercel.app")).toBe(false);
+  });
+
+  it("trusts the host named by APP_URL", () => {
+    process.env.APP_URL = "https://app.vidlix.in";
+    expect(allowedOAuthOrigin("https://app.vidlix.in")).toBe(true);
+    delete process.env.APP_URL;
+  });
+
+  it("trusts extra hosts only when they are listed explicitly", () => {
+    expect(allowedOAuthOrigin("https://staging.vidlix.in")).toBe(false);
+    process.env.OAUTH_ALLOWED_HOSTS = "staging.vidlix.in, admin.vidlix.in";
+    expect(allowedOAuthOrigin("https://staging.vidlix.in")).toBe(true);
+    expect(allowedOAuthOrigin("https://admin.vidlix.in")).toBe(true);
+    expect(allowedOAuthOrigin("https://other.vidlix.in")).toBe(false);
+    delete process.env.OAUTH_ALLOWED_HOSTS;
   });
 
   it("rejects anything else", () => {

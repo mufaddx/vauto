@@ -48,7 +48,7 @@ export async function rateLimit(
   }
 }
 
-/** Best-effort client identity behind Vercel's proxy. */
+/** Best-effort client identity behind the hosting provider's proxy. */
 export function clientKey(request: Request, scope: string) {
   const forwarded = request.headers.get("x-forwarded-for") ?? "";
   const ip = forwarded.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";

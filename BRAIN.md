@@ -89,19 +89,22 @@ and `facebook.com//dialog/oauth` from an empty `META_GRAPH_VERSION`.
 The same empty-string problem hit `APP_ENV`, where it silently dropped the
 Secure flag from cookies — `secureCookies()` no longer depends on it.
 
-Vercel: GitHub `mufaddx/vauto`. Cloudflare Workers / OpenNext config has been
-removed — Vercel is the only host. The BullMQ worker (`npm run worker`) is a
-long-running process and must run somewhere that is not Vercel functions.
-Empty `MARKETING_URL` is invalid (`??` does not skip `""`); metadata base falls back to `VERCEL_URL` or `https://vidlix.in`. Cloudflare Workers was over the free 3 MiB limit — Vercel is the app host. OAuth callback URLs are derived from the request origin (`https://vidlix.in/.../callback`). Prisma runtime prefers `DIRECT_URL` (session pooler) then `DATABASE_URL`.
+Hosting is Hostinger, deployed from GitHub `mufaddx/vauto` (branch `main`),
+with the database staying on Supabase. Vercel and Cloudflare Workers are both
+retired — `vidlix.in` must point at exactly one host, or a correct deployment on
+the other one looks like it had no effect.
 
-## Meta app types
+The Supabase Data API is revoked, so `@supabase/supabase-js` cannot reach this
+database. Prisma over `pg` is the only access path; ignore host wizards that
+offer to wire up `SUPABASE_URL` and an API key.
 
-Facebook *login* and Facebook *channel connect* need different Meta app types.
-A business-type app cannot request `email` / `public_profile` — it fails with
-"Invalid Scopes: email" — but it is the right type for the `pages_*` and
-`instagram_business_*` scopes used by channel connect. Keep login on a
-consumer-type app via `FACEBOOK_LOGIN_APP_ID` / `FACEBOOK_LOGIN_APP_SECRET`,
-or drop Facebook login and keep Google plus email.
+The BullMQ worker (`npm run worker`) is a second long-running process. Without
+it, Meta events are stored and queued but no automation ever replies.
+
+OAuth origins are an explicit allowlist (`allowedOAuthHosts`) — the product
+domain, whatever `APP_URL` names, and anything in `OAUTH_ALLOWED_HOSTS`. It used
+to trust every `*.vercel.app` host, which let anyone with an account there
+present a trusted origin.
 
 ## Known limitations
 
