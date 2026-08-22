@@ -3,6 +3,7 @@ import { oauthErrorMessage, SocialAuthButtons } from "@/components/auth/social-a
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { mailConfigured } from "@/lib/mail";
+import { authFormMessage } from "@/lib/auth/form-errors";
 
 export default async function LoginPage({
   searchParams,
@@ -11,7 +12,7 @@ export default async function LoginPage({
 }) {
   const { error, next, reset } = await searchParams;
   const nextPath = next && next.startsWith("/") && !next.startsWith("//") ? next : "";
-  const message = oauthErrorMessage(error);
+  const message = authFormMessage(error) ?? oauthErrorMessage(error);
   const emailCodes = mailConfigured();
 
   return (

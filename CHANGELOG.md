@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Login and signup returned raw JSON to the browser on failure, dropping the user on a blank JSON page with the form gone. Browser form posts now return to the form with a readable message; API clients still get JSON with the original status
 - Database TLS failed against the Supabase pooler with "self-signed certificate in certificate chain". TLS is now configured explicitly on the pool. Verification is the default: `DATABASE_CA_CERT` verifies the chain, and skipping verification requires an explicit `DATABASE_TLS_INSECURE=true` opt-in that logs a warning. Without either, the app refuses to connect
 - The OAuth callback put raw Prisma errors into the redirect URL, exposing internal detail in the address bar and page. Errors are logged and reduced to a coded hint
 - Facebook login scopes are configurable via `FACEBOOK_LOGIN_SCOPES`; business-type Meta apps cannot request `email` or `public_profile`
