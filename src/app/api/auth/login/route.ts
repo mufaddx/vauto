@@ -20,7 +20,20 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/app", request.url), 303);
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { email } });
+  } catch {
+    return NextResponse.json(
+      {
+        title: "Login could not be completed",
+        reason: "The database could not be reached. Check DATABASE_URL on this deployment.",
+        action: "Retry after the database connection is saved and the app is redeployed.",
+      },
+      { status: 503 },
+    );
+  }
+
   if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json(
       {

@@ -47,7 +47,7 @@ WhatsApp, YouTube, AI agent/memory/replies/intent/ticketing, human handoff AI, A
 
 ## Database
 
-See `prisma/schema.prisma`. Applied on Supabase project `egflpmfnnulatrmciqmm` (public tables + RLS enabled; Data API grants revoked so the Next.js server via Prisma is the access path). App still needs `DATABASE_URL` / `DIRECT_URL` in `.env.local` (database password from the Supabase dashboard).
+See `prisma/schema.prisma`. Applied on Supabase project `egflpmfnnulatrmciqmm` (public tables + RLS enabled; Data API grants revoked so the Next.js server via Prisma is the access path). Runtime uses `@prisma/adapter-pg` with `DATABASE_URL` (pooler 6543). `DIRECT_URL` is for migrations. `/api/health` reports `database: true` only after a live `SELECT 1`.
 
 ## Environment and deploy
 

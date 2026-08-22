@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { getRedis } from "@/lib/queues";
-import { getPrisma } from "@/lib/db";
+import { pingDatabase } from "@/lib/db";
 
 export async function GET() {
-  const db = getPrisma();
+  const database = await pingDatabase();
   const redis = getRedis();
   return NextResponse.json({
     ok: true,
     env: process.env.APP_ENV ?? "development",
-    database: Boolean(db),
+    database,
     redis: Boolean(redis),
   });
 }
